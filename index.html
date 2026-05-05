@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e10;
+    --surface: #1a1a1e;
+    --surface2: #242428;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #f0f0ee;
+    --muted: #888880;
+    --accent-core: #e8ff5a;
+    --accent-skill: #5af0c8;
+    --accent-opp: #c8a0ff;
+    --accent-life: #ff8c5a;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  header h1 {
+    font-family: var(--font-head);
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+    background: linear-gradient(90deg, var(--accent-core), var(--accent-skill), var(--accent-opp), var(--accent-life));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  header p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  #date-display {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .summary-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .summary-card .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .summary-card .value {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+
+  .section-label.core { color: var(--accent-core); }
+  .section-label.skill { color: var(--accent-skill); }
+  .section-label.opp { color: var(--accent-opp); }
+  .section-label.life { color: var(--accent-life); }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: var(--border2); }
+
+  .card.core { border-left: 3px solid var(--accent-core); }
+  .card.skill { border-left: 3px solid var(--accent-skill); }
+  .card.opp { border-left: 3px solid var(--accent-opp); }
+  .card.life { border-left: 3px solid var(--accent-life); }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .card-title {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    max-width: 70%;
+  }
+
+  .target-badge {
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 7px;
+    white-space: nowrap;
+  }
+
+  .card-note {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .card.core .progress-fill { background: var(--accent-core); }
+  .card.skill .progress-fill { background: var(--accent-skill); }
+  .card.opp .progress-fill { background: var(--accent-opp); }
+  .card.life .progress-fill { background: var(--accent-life); }
+
+  .timer-display {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    min-width: 70px;
+    text-align: right;
+  }
+
+  .card.core .timer-display { color: var(--accent-core); }
+  .card.skill .timer-display { color: var(--accent-skill); }
+  .card.opp .timer-display { color: var(--accent-opp); }
+  .card.life .timer-display { color: var(--accent-life); }
+
+  .card-controls {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 7px 0;
+    border-radius: 7px;
+    border: 0.5px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+
+  .btn:hover { background: var(--surface2); color: var(--text); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn.start-btn {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .card.core .btn.start-btn { border-color: var(--accent-core); color: var(--accent-core); }
+  .card.skill .btn.start-btn { border-color: var(--accent-skill); color: var(--accent-skill); }
+  .card.opp .btn.start-btn { border-color: var(--accent-opp); color: var(--accent-opp); }
+  .card.life .btn.start-btn { border-color: var(--accent-life); color: var(--accent-life); }
+
+  .card.core .btn.start-btn.running { background: var(--accent-core); color: var(--bg); }
+  .card.skill .btn.start-btn.running { background: var(--accent-skill); color: var(--bg); }
+  .card.opp .btn.start-btn.running { background: var(--accent-opp); color: var(--bg); }
+  .card.life .btn.start-btn.running { background: var(--accent-life); color: var(--bg); }
+
+  .card.done-card {
+    opacity: 0.5;
+  }
+  .card.done-card .timer-display {
+    text-decoration: line-through;
+  }
+
+  .done-stamp {
+    display: none;
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: #1a3a20;
+    color: #5af0a0;
+    border: 0.5px solid #5af0a0;
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+
+  .card.done-card .done-stamp { display: block; }
+
+  .reset-all-btn {
+    display: block;
+    margin: 24px auto 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 10px 28px;
+    background: transparent;
+    border: 0.5px solid var(--border2);
+    color: var(--muted);
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .reset-all-btn:hover { color: var(--text); border-color: var(--text); }
+
+  .overtime {
+    animation: blink-border 1s infinite;
+  }
+  @keyframes blink-border {
+    0%, 100% { border-color: rgba(255,80,80,0.6); }
+    50% { border-color: rgba(255,80,80,0.15); }
+  }
+
+  .overtime .timer-display {
+    color: #ff6060 !important;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 36px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Daily Dashboard</h1>
+  <p>Job hunt engine — stay on track</p>
+  <div id="date-display"></div>
+</header>
+
+<div class="summary-bar">
+  <div class="summary-card">
+    <div class="label">Total Elapsed</div>
+    <div class="value" id="total-elapsed">0:00</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Target Today</div>
+    <div class="value">~8h 30m</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Core Done</div>
+    <div class="value" id="core-pct">0%</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Activities Done</div>
+    <div class="value" id="done-count">0 / 11</div>
+  </div>
+</div>
+
+<div class="section-label core">⚙ Core — non-negotiable</div>
+<div class="cards-grid" id="core-section"></div>
+
+<div class="section-label skill">↑ Skill building</div>
+<div class="cards-grid" id="skill-section"></div>
+
+<div class="section-label opp">⬡ Opportunity expansion</div>
+<div class="cards-grid" id="opp-section"></div>
+
+<div class="section-label life">♡ Life & balance</div>
+<div class="cards-grid" id="life-section"></div>
+
+<button class="reset-all-btn" onclick="resetAll()">reset all timers</button>
+
+<footer>saved locally — open anytime · timers persist until page close</footer>
+
+<script>
+const ACTIVITIES = [
+  { id: 'apply', title: 'Applying to Jobs', section: 'core', minMins: 150, maxMins: 180, note: 'Aim for 5–10 quality applications. Tailor each resume to the JD.' },
+  { id: 'email', title: 'Finding Emails + Following Up', section: 'core', minMins: 45, maxMins: 60, note: 'Most applicants skip this. Focus on jobs you already applied to.' },
+  { id: 'interview', title: 'Practicing for Interviews', section: 'core', minMins: 30, maxMins: 45, note: 'Do mock questions — not just reading. Stay sharp for real opportunities.' },
+  { id: 'analytics-course', title: 'Google Analytics Course', section: 'skill', minMins: 60, maxMins: 90, note: 'Resume booster + practical knowledge. Steady progress, no binging.' },
+  { id: 'analytics-research', title: 'Analytics Research', section: 'skill', minMins: 30, maxMins: 30, note: 'Cap at 30 min intentionally — easy procrastination disguised as work.' },
+  { id: 'job-fairs', title: 'Looking for Job Fairs', section: 'opp', minMins: 15, maxMins: 20, note: 'Quick scans only. You\'re just catching opportunities, not deep diving.' },
+  { id: 'side-hustles', title: 'Side Hustle Exploration', section: 'opp', minMins: 30, maxMins: 45, note: 'Exploration, not commitment yet. Don\'t let this distract from job search.' },
+  { id: 'gym', title: 'Gym', section: 'life', minMins: 45, maxMins: 60, note: 'Cap it. This feeds everything else — energy, confidence, discipline.' },
+  { id: 'sunny', title: 'Time with Sunny 🐶', section: 'life', minMins: 60, maxMins: 90, note: 'Non-negotiable. Can overlap with walks and breaks.' },
+  { id: 'guitar', title: 'Guitar / Songwriting', section: 'life', minMins: 30, maxMins: 45, note: 'Keeps you creative and sane. Don\'t skip — burnout kills consistency.' },
+  { id: 'leisure', title: 'Leisure Time', section: 'life', minMins: 60, maxMins: 120, note: 'You need this or you\'ll crash in a week. Don\'t let it bleed into work.' },
+];
+
+const SECTION_IDS = { core: 'core-section', skill: 'skill-section', opp: 'opp-section', life: 'life-section' };
+
+let timers = {};
+let intervals = {};
+let elapsed = {};
+let done = {};
+
+ACTIVITIES.forEach(a => {
+  elapsed[a.id] = 0;
+  done[a.id] = false;
+  timers[a.id] = null;
+});
+
+function formatTime(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function formatMins(min, max) {
+  if (min === max) return `${min}m`;
+  return `${min}–${max}m`;
+}
+
+function buildCards() {
+  ACTIVITIES.forEach(a => {
+    const section = document.getElementById(SECTION_IDS[a.section]);
+    const card = document.createElement('div');
+    card.className = `card ${a.section}`;
+    card.id = `card-${a.id}`;
+    card.innerHTML = `
+      <div class="done-stamp">done</div>
+      <div class="card-header">
+        <div class="card-title">${a.title}</div>
+        <div class="target-badge">${formatMins(a.minMins, a.maxMins)}</div>
+      </div>
+      <div class="card-note">${a.note}</div>
+      <div class="progress-row">
+        <div class="progress-track"><div class="progress-fill" id="prog-${a.id}"></div></div>
+        <div class="timer-display" id="timer-${a.id}">0:00</div>
+      </div>
+      <div class="card-controls">
+        <button class="btn start-btn" id="btn-${a.id}" onclick="toggleTimer('${a.id}')">▶ start</button>
+        <button class="btn" onclick="resetTimer('${a.id}')">↺ reset</button>
+        <button class="btn" onclick="markDone('${a.id}')">${done[a.id] ? '✓ done' : '✓'}</button>
+      </div>
+    `;
+    section.appendChild(card);
+  });
+}
+
+function toggleTimer(id) {
+  const btn = document.getElementById(`btn-${id}`);
+  if (timers[id]) {
+    clearInterval(timers[id]);
+    timers[id] = null;
+    btn.textContent = '▶ start';
+    btn.classList.remove('running');
+  } else {
+    timers[id] = setInterval(() => {
+      elapsed[id]++;
+      updateCard(id);
+      updateSummary();
+    }, 1000);
+    btn.textContent = '⏸ pause';
+    btn.classList.add('running');
+  }
+}
+
+function resetTimer(id) {
+  if (timers[id]) { clearInterval(timers[id]); timers[id] = null; }
+  elapsed[id] = 0;
+  done[id] = false;
+  const btn = document.getElementById(`btn-${id}`);
+  btn.textContent = '▶ start';
+  btn.classList.remove('running');
+  document.getElementById(`card-${id}`).classList.remove('done-card', 'overtime');
+  updateCard(id);
+  updateSummary();
+}
+
+function markDone(id) {
+  if (timers[id]) { clearInterval(timers[id]); timers[id] = null; }
+  done[id] = true;
+  const btn = document.getElementById(`btn-${id}`);
+  btn.textContent = '▶ start';
+  btn.classList.remove('running');
+  document.getElementById(`card-${id}`).classList.add('done-card');
+  updateCard(id);
+  updateSummary();
+}
+
+function updateCard(id) {
+  const a = ACTIVITIES.find(x => x.id === id);
+  const el = document.getElementById(`timer-${id}`);
+  const prog = document.getElementById(`prog-${id}`);
+  const card = document.getElementById(`card-${id}`);
+  el.textContent = formatTime(elapsed[id]);
+  const pct = Math.min(100, (elapsed[id] / (a.maxMins * 60)) * 100);
+  prog.style.width = pct + '%';
+  if (elapsed[id] > a.maxMins * 60 && !done[id]) {
+    card.classList.add('overtime');
+  } else {
+    card.classList.remove('overtime');
+  }
+}
+
+function updateSummary() {
+  let total = 0;
+  ACTIVITIES.forEach(a => total += elapsed[a.id]);
+  document.getElementById('total-elapsed').textContent = formatTime(total);
+
+  const coreActs = ACTIVITIES.filter(a => a.section === 'core');
+  const coreTarget = coreActs.reduce((s, a) => s + a.maxMins * 60, 0);
+  const coreElapsed = coreActs.reduce((s, a) => s + elapsed[a.id], 0);
+  document.getElementById('core-pct').textContent = Math.min(100, Math.round((coreElapsed / coreTarget) * 100)) + '%';
+
+  const doneCount = Object.values(done).filter(Boolean).length;
+  document.getElementById('done-count').textContent = `${doneCount} / ${ACTIVITIES.length}`;
+}
+
+function resetAll() {
+  if (!confirm('Reset all timers?')) return;
+  ACTIVITIES.forEach(a => resetTimer(a.id));
+}
+
+function setDateDisplay() {
+  const d = new Date();
+  const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  document.getElementById('date-display').textContent = d.toLocaleDateString(undefined, opts);
+}
+
+buildCards();
+setDateDisplay();
+updateSummary();
+</script>
+</body>
+</html>
