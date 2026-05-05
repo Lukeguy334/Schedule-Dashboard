@@ -298,6 +298,19 @@
     color: var(--muted);
     letter-spacing: 0.05em;
   }
+
+  #save-indicator {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  #save-indicator.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -341,7 +354,8 @@
 
 <button class="reset-all-btn" onclick="resetAll()">reset all timers</button>
 
-<footer>saved locally — open anytime · timers persist until page close</footer>
+<footer>progress auto-saved to your browser · resets each new day</footer>
+<div id="save-indicator">saved ✓</div>
 
 <script>
 const ACTIVITIES = [
@@ -359,17 +373,50 @@ const ACTIVITIES = [
 ];
 
 const SECTION_IDS = { core: 'core-section', skill: 'skill-section', opp: 'opp-section', life: 'life-section' };
+const STORAGE_KEY = 'dashboard_v1';
 
 let timers = {};
-let intervals = {};
 let elapsed = {};
 let done = {};
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.date !== todayStr()) return; // new day — start fresh
+    ACTIVITIES.forEach(a => {
+      elapsed[a.id] = data.elapsed?.[a.id] || 0;
+      done[a.id] = data.done?.[a.id] || false;
+    });
+  } catch(e) {}
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      date: todayStr(),
+      elapsed,
+      done
+    }));
+    const ind = document.getElementById('save-indicator');
+    ind.classList.add('show');
+    clearTimeout(ind._t);
+    ind._t = setTimeout(() => ind.classList.remove('show'), 1500);
+  } catch(e) {}
+}
 
 ACTIVITIES.forEach(a => {
   elapsed[a.id] = 0;
   done[a.id] = false;
   timers[a.id] = null;
 });
+
+loadState();
 
 function formatTime(secs) {
   const h = Math.floor(secs / 3600);
@@ -388,7 +435,7 @@ function buildCards() {
   ACTIVITIES.forEach(a => {
     const section = document.getElementById(SECTION_IDS[a.section]);
     const card = document.createElement('div');
-    card.className = `card ${a.section}`;
+    card.className = `card ${a.section}${done[a.id] ? ' done-card' : ''}`;
     card.id = `card-${a.id}`;
     card.innerHTML = `
       <div class="done-stamp">done</div>
@@ -404,10 +451,11 @@ function buildCards() {
       <div class="card-controls">
         <button class="btn start-btn" id="btn-${a.id}" onclick="toggleTimer('${a.id}')">▶ start</button>
         <button class="btn" onclick="resetTimer('${a.id}')">↺ reset</button>
-        <button class="btn" onclick="markDone('${a.id}')">${done[a.id] ? '✓ done' : '✓'}</button>
+        <button class="btn" onclick="markDone('${a.id}')">✓</button>
       </div>
     `;
     section.appendChild(card);
+    updateCard(a.id);
   });
 }
 
@@ -418,11 +466,13 @@ function toggleTimer(id) {
     timers[id] = null;
     btn.textContent = '▶ start';
     btn.classList.remove('running');
+    saveState();
   } else {
     timers[id] = setInterval(() => {
       elapsed[id]++;
       updateCard(id);
       updateSummary();
+      if (elapsed[id] % 10 === 0) saveState();
     }, 1000);
     btn.textContent = '⏸ pause';
     btn.classList.add('running');
@@ -439,6 +489,7 @@ function resetTimer(id) {
   document.getElementById(`card-${id}`).classList.remove('done-card', 'overtime');
   updateCard(id);
   updateSummary();
+  saveState();
 }
 
 function markDone(id) {
@@ -450,6 +501,7 @@ function markDone(id) {
   document.getElementById(`card-${id}`).classList.add('done-card');
   updateCard(id);
   updateSummary();
+  saveState();
 }
 
 function updateCard(id) {
@@ -471,12 +523,10 @@ function updateSummary() {
   let total = 0;
   ACTIVITIES.forEach(a => total += elapsed[a.id]);
   document.getElementById('total-elapsed').textContent = formatTime(total);
-
   const coreActs = ACTIVITIES.filter(a => a.section === 'core');
   const coreTarget = coreActs.reduce((s, a) => s + a.maxMins * 60, 0);
   const coreElapsed = coreActs.reduce((s, a) => s + elapsed[a.id], 0);
   document.getElementById('core-pct').textContent = Math.min(100, Math.round((coreElapsed / coreTarget) * 100)) + '%';
-
   const doneCount = Object.values(done).filter(Boolean).length;
   document.getElementById('done-count').textContent = `${doneCount} / ${ACTIVITIES.length}`;
 }
@@ -491,6 +541,8 @@ function setDateDisplay() {
   const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   document.getElementById('date-display').textContent = d.toLocaleDateString(undefined, opts);
 }
+
+window.addEventListener('beforeunload', saveState);
 
 buildCards();
 setDateDisplay();
